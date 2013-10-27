@@ -18,6 +18,13 @@
 #define ADXL362_h
 
 
+/**
+ * Turn debugging on or off
+ */
+//#define ADXL362_DEBUG 1
+
+
+
 class ADXL362
 {
 public:

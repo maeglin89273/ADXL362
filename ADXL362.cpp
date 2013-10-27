@@ -17,7 +17,6 @@
 #include <SPI.h>
 
 const int slaveSelectPin = 10;
-const bool debugSerial = 1;
 
 ADXL362::ADXL362() {
 
@@ -37,7 +36,9 @@ void ADXL362::begin() {
   // soft reset
   SPIwriteOneRegister(0x1F, 0x52);  // Write to SOFT RESET, "R"
   delay(10);
+#ifdef ADXL362_DEBUG 
   Serial.println("Soft Reset\n");
+#endif
  }
 
  
@@ -47,16 +48,22 @@ void ADXL362::begin() {
 // 
 void ADXL362::beginMeasure() {
   byte temp = SPIreadOneRegister(0x2D);	// read Reg 2D before modifying for measure mode
-  if (debugSerial) {Serial.print(  "Setting Measeurement Mode - Reg 2D before = "); Serial.print(temp); }
+#ifdef ADXL362_DEBUG
+  Serial.print(  "Setting Measeurement Mode - Reg 2D before = "); 
+  Serial.print(temp);
+#endif
 
   // turn on measurement mode
   byte tempwrite = temp | 0x02;			// turn on measurement bit in Reg 2D
   SPIwriteOneRegister(0x2D, tempwrite); // Write to POWER_CTL_REG, Measurement Mode
   delay(10);	
   
-  if (debugSerial) {
+#ifdef ADXL362_DEBUG
   temp = SPIreadOneRegister(0x2D);
-  Serial.print(  ", Reg 2D after = "); Serial.println(temp); Serial.println();}
+  Serial.print(  ", Reg 2D after = "); 
+  Serial.println(temp); 
+  Serial.println();
+#endif
 }
 
 
@@ -66,25 +73,37 @@ void ADXL362::beginMeasure() {
 //
 int ADXL362::readXData(){
   int XDATA = SPIreadTwoRegisters(0x0E);
-  if (debugSerial) {Serial.print(  "XDATA = "); Serial.print(XDATA); }
+#ifdef ADXL362_DEBUG
+  Serial.print(  "XDATA = "); 
+  Serial.print(XDATA);
+#endif
   return XDATA;
 }
 
 int ADXL362::readYData(){
   int YDATA = SPIreadTwoRegisters(0x10);
-  if (debugSerial) {Serial.print(  "\tYDATA = "); Serial.print(YDATA); }
+#ifdef ADXL362_DEBUG
+  Serial.print(  "\tYDATA = "); 
+  Serial.print(YDATA);
+#endif
   return YDATA;
 }
 
 int ADXL362::readZData(){
   int ZDATA = SPIreadTwoRegisters(0x12);
-  if (debugSerial) {Serial.print(  "\tZDATA = "); Serial.print(ZDATA); }
+#ifdef ADXL362_DEBUG
+  Serial.print(  "\tZDATA = "); 
+  Serial.print(ZDATA);
+#endif
   return ZDATA;
 }
 
 int ADXL362::readTemp(){
   int TEMP = SPIreadTwoRegisters(0x14);
-  if (debugSerial) {Serial.print("\tTEMP = "); Serial.print(TEMP); }
+#ifdef ADXL362_DEBUG
+  Serial.print("\tTEMP = "); 
+  Serial.print(TEMP);
+#endif
   return TEMP;
 }
 
@@ -105,13 +124,12 @@ void ADXL362::readXYZTData(int &XData, int &YData, int &ZData, int &Temperature)
   Temperature = Temperature + (SPI.transfer(0x00) << 8);
   digitalWrite(slaveSelectPin, HIGH);
   
-  if (debugSerial) {
-	Serial.print(  "XDATA = "); Serial.print(XData); 
-	Serial.print(  "\tYDATA = "); Serial.print(YData); 
-	Serial.print(  "\tZDATA = "); Serial.print(ZData); 
-	Serial.print(  "\tTemperature = "); Serial.println(Temperature);
-	}
-
+#ifdef ADXL362_DEBUG
+  Serial.print(  "XDATA = "); Serial.print(XData); 
+  Serial.print(  "\tYDATA = "); Serial.print(YData); 
+  Serial.print(  "\tZDATA = "); Serial.print(ZData); 
+  Serial.print(  "\tTemperature = "); Serial.println(Temperature);
+#endif
 }
 
 
@@ -127,11 +145,11 @@ void ADXL362::setupDCActivityInterrupt(int threshold, byte time){
   SPIwriteOneRegister(0x27, ACT_INACT_CTL_Reg);       // Write new reg value 
   ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);       // Verify properly written
 
-  if (debugSerial) {
+#ifdef ADXL362_DEBUG
   Serial.print("DC Activity Threshold set to ");  	Serial.print(SPIreadTwoRegisters(0x20));
   Serial.print(", Time threshold set to ");  		Serial.print(SPIreadOneRegister(0x22)); 
   Serial.print(", ACT_INACT_CTL Register is ");  	Serial.println(ACT_INACT_CTL_Reg, HEX);
-  }
+#endif
 }
 
 void ADXL362::setupACActivityInterrupt(int threshold, byte time){
@@ -145,11 +163,11 @@ void ADXL362::setupACActivityInterrupt(int threshold, byte time){
   SPIwriteOneRegister(0x27, ACT_INACT_CTL_Reg);       // Write new reg value 
   ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);       // Verify properly written
 
- if (debugSerial) {  
+#ifdef ADXL362_DEBUG
   Serial.print("AC Activity Threshold set to ");  	Serial.print(SPIreadTwoRegisters(0x20));
   Serial.print(", Time Activity set to ");  		Serial.print(SPIreadOneRegister(0x22));  
   Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(ACT_INACT_CTL_Reg, HEX);
-  }
+#endif
 }
 
 void ADXL362::setupDCInactivityInterrupt(int threshold, int time){
@@ -163,11 +181,11 @@ void ADXL362::setupDCInactivityInterrupt(int threshold, int time){
   SPIwriteOneRegister(0x27, ACT_INACT_CTL_Reg);        // Write new reg value 
   ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);        // Verify properly written
 
- if (debugSerial) {
+#ifdef ADXL362_DEBUG
   Serial.print("DC Inactivity Threshold set to ");  Serial.print(SPIreadTwoRegisters(0x23));
   Serial.print(", Time Inactivity set to ");  Serial.print(SPIreadTwoRegisters(0x25));
   Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(ACT_INACT_CTL_Reg, HEX);
-  }
+#endif
 }
 
 
@@ -182,11 +200,11 @@ void ADXL362::setupACInactivityInterrupt(int threshold, int time){
   SPIwriteOneRegister(0x27, ACT_INACT_CTL_Reg);        // Write new reg value 
   ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);        // Verify properly written
 
- if (debugSerial) {
+#ifdef ADXL362_DEBUG
   Serial.print("AC Inactivity Threshold set to ");  Serial.print(SPIreadTwoRegisters(0x23));
   Serial.print(", Time Inactivity set to ");  Serial.print(SPIreadTwoRegisters(0x25)); 
   Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(ACT_INACT_CTL_Reg, HEX);
-  }
+#endif
 }
 
 
