@@ -34,7 +34,7 @@ void ADXL362::begin() {
   delay(1000);
     
   // soft reset
-  SPIwriteOneRegister(0x1F, 0x52);  // Write to SOFT RESET, "R"
+  SPIwriteOneRegister(XL362_SOFT_RESET, 0x52);  // Write to SOFT RESET, "R"
   delay(10);
 #ifdef ADXL362_DEBUG 
   Serial.println("Soft Reset\n");
@@ -47,22 +47,21 @@ void ADXL362::begin() {
 //  turn on Measurement mode - required after reset
 // 
 void ADXL362::beginMeasure() {
-  byte temp = SPIreadOneRegister(0x2D);	// read Reg 2D before modifying for measure mode
+  byte temp = SPIreadOneRegister(XL362_POWER_CTL);	// read Reg 2D before modifying for measure mode
 #ifdef ADXL362_DEBUG
-  Serial.print(  "Setting Measeurement Mode - Reg 2D before = "); 
+  Serial.print(  "Setting Measeurement Mode - Reg XL362_POWER_CTL before = "); 
   Serial.print(temp);
 #endif
 
   // turn on measurement mode
-  byte tempwrite = temp | 0x02;			// turn on measurement bit in Reg 2D
-  SPIwriteOneRegister(0x2D, tempwrite); // Write to POWER_CTL_REG, Measurement Mode
+  temp = (temp & B11111100) | XL362_POWER_FLAG_MEASURE_RUNING;			// turn on measurement bit in Reg XL362_POWER_CTL
+  SPIwriteOneRegister(XL362_POWER_CTL, temp); // Write to XL362_POWER_CTL, Measurement Mode
   delay(10);	
   
 #ifdef ADXL362_DEBUG
-  temp = SPIreadOneRegister(0x2D);
-  Serial.print(  ", Reg 2D after = "); 
+  temp = SPIreadOneRegister(XL362_POWER_CTL);
+  Serial.print(  ", Reg XL362_POWER_CTL after = "); 
   Serial.println(temp); 
-  Serial.println();
 #endif
 }
 
@@ -72,48 +71,48 @@ void ADXL362::beginMeasure() {
 //  Read X, Y, Z, and Temp registers
 //
 int ADXL362::readXData(){
-  int XDATA = SPIreadTwoRegisters(0x0E);
+  int XDATA = SPIreadTwoRegisters(XL362_XDATA_L);
 #ifdef ADXL362_DEBUG
   Serial.print(  "XDATA = "); 
-  Serial.print(XDATA);
+  Serial.println(XDATA);
 #endif
   return XDATA;
 }
 
 int ADXL362::readYData(){
-  int YDATA = SPIreadTwoRegisters(0x10);
+  int YDATA = SPIreadTwoRegisters(XL362_YDATA_L);
 #ifdef ADXL362_DEBUG
   Serial.print(  "\tYDATA = "); 
-  Serial.print(YDATA);
+  Serial.println(YDATA);
 #endif
   return YDATA;
 }
 
 int ADXL362::readZData(){
-  int ZDATA = SPIreadTwoRegisters(0x12);
+  int ZDATA = SPIreadTwoRegisters(XL362_ZDATA_L);
 #ifdef ADXL362_DEBUG
   Serial.print(  "\tZDATA = "); 
-  Serial.print(ZDATA);
+  Serial.println(ZDATA);
 #endif
   return ZDATA;
 }
 
 int ADXL362::readTemp(){
-  int TEMP = SPIreadTwoRegisters(0x14);
+  int TEMP = SPIreadTwoRegisters(XL362_TEMP_L);
 #ifdef ADXL362_DEBUG
   Serial.print("\tTEMP = "); 
-  Serial.print(TEMP);
+  Serial.println(TEMP);
 #endif
   return TEMP;
 }
 
-void ADXL362::readXYZTData(int &XData, int &YData, int &ZData, int &Temperature){
+void ADXL362::readXYZTData(word &XData, word &YData, word &ZData, word &Temperature){
   
   // burst SPI read
   // A burst read of all three axis is required to guarantee all measurements correspond to same sample time
   digitalWrite(slaveSelectPin, LOW);
   SPI.transfer(0x0B);  // read instruction
-  SPI.transfer(0x0E);  // Start at XData Reg
+  SPI.transfer(XL362_XDATA_L);  // Start at XData Reg
   XData = SPI.transfer(0x00);
   XData = XData + (SPI.transfer(0x00) << 8);
   YData = SPI.transfer(0x00);
@@ -128,82 +127,117 @@ void ADXL362::readXYZTData(int &XData, int &YData, int &ZData, int &Temperature)
   Serial.print(  "XDATA = "); Serial.print(XData); 
   Serial.print(  "\tYDATA = "); Serial.print(YData); 
   Serial.print(  "\tZDATA = "); Serial.print(ZData); 
-  Serial.print(  "\tTemperature = "); Serial.println(Temperature);
+  Serial.println(  "\tTemperature = "); Serial.println(Temperature);
+#endif
+}
+
+int RegistersToInt(word RegValue)
+{
+  int r = value & 0x07FF; // 11bit of data
+  if ( value & 0X0800 )   // Bit 12 and > are the sign
+  {
+    r = value - 65536;
+  }
+  return r;	
+}
+
+void readXYZmg(int &X, int &Y, int &Z){
+  
+  // burst SPI read
+  // A burst read of all three axis is required to guarantee all measurements correspond to same sample time
+  digitalWrite(slaveSelectPin, LOW);
+  SPI.transfer(0x0B);  // read instruction
+  SPI.transfer(XL362_XDATA_L);  // Start at XData Reg
+  word XData = SPI.transfer(0x00);
+  XData = XData + (SPI.transfer(0x00) << 8);
+  word YData = SPI.transfer(0x00);
+  YData = YData + (SPI.transfer(0x00) << 8);
+  wordZData = SPI.transfer(0x00);
+  ZData = ZData + (SPI.transfer(0x00) << 8);
+  digitalWrite(slaveSelectPin, HIGH);
+  
+  X = RegistersToInt(XData);
+  X *= mgperLSB;
+  Y = RegistersToInt(XData);
+  Y *= mgperLSB;
+  Z = RegistersToInt(XData);
+  Z *= mgperLSB;
+  
+#ifdef ADXL362_DEBUG
+  Serial.print(  "x = "); Serial.print(X); 
+  Serial.print(  "\ty = "); Serial.print(Y); 
+  Serial.println(  "\tz = "); Serial.print(Z); 
 #endif
 }
 
 
-
 void ADXL362::setupDCActivityInterrupt(int threshold, byte time){
   //  Setup motion and time thresholds
-  SPIwriteTwoRegisters(0x20, threshold);
-  SPIwriteOneRegister(0x22, time);
+  SPIwriteTwoRegisters(XL362_THRESH_ACT_L, threshold);
+  SPIwriteOneRegister(XL362_TIME_ACT, time);
 
   // turn on activity interrupt
-  byte ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);  // Read current reg value
+  byte ACT_INACT_CTL_Reg = SPIreadOneRegister(XL362_ACT_INACT_CTL);  // Read current reg value
   ACT_INACT_CTL_Reg = ACT_INACT_CTL_Reg | (0x01);     // turn on bit 1, ACT_EN  
-  SPIwriteOneRegister(0x27, ACT_INACT_CTL_Reg);       // Write new reg value 
-  ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);       // Verify properly written
+  SPIwriteOneRegister(XL362_ACT_INACT_CTL, ACT_INACT_CTL_Reg);       // Write new reg value 
 
 #ifdef ADXL362_DEBUG
-  Serial.print("DC Activity Threshold set to ");  	Serial.print(SPIreadTwoRegisters(0x20));
-  Serial.print(", Time threshold set to ");  		Serial.print(SPIreadOneRegister(0x22)); 
-  Serial.print(", ACT_INACT_CTL Register is ");  	Serial.println(ACT_INACT_CTL_Reg, HEX);
+  Serial.print("DC Activity Threshold set to "); Serial.print(SPIreadTwoRegisters(XL362_THRESH_ACT_L));
+  Serial.print(", Time threshold set to ");  		 Serial.print(SPIreadOneRegister(XL362_TIME_ACT)); 
+  Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(SPIreadOneRegister(XL362_ACT_INACT_CTL), HEX);
 #endif
 }
 
 void ADXL362::setupACActivityInterrupt(int threshold, byte time){
   //  Setup motion and time thresholds
-  SPIwriteTwoRegisters(0x20, threshold);
-  SPIwriteOneRegister(0x22, time);
+  SPIwriteTwoRegisters(XL362_THRESH_ACT_L, threshold);
+  SPIwriteOneRegister(XL362_TIME_ACT, time);
   
   // turn on activity interrupt
-  byte ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);  // Read current reg value
+  byte ACT_INACT_CTL_Reg = SPIreadOneRegister(XL362_ACT_INACT_CTL);  // Read current reg value
   ACT_INACT_CTL_Reg = ACT_INACT_CTL_Reg | (0x03);     // turn on bit 2 and 1, ACT_AC_DCB, ACT_EN  
-  SPIwriteOneRegister(0x27, ACT_INACT_CTL_Reg);       // Write new reg value 
-  ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);       // Verify properly written
+  SPIwriteOneRegister(XL362_ACT_INACT_CTL, ACT_INACT_CTL_Reg);       // Write new reg value 
 
 #ifdef ADXL362_DEBUG
-  Serial.print("AC Activity Threshold set to ");  	Serial.print(SPIreadTwoRegisters(0x20));
-  Serial.print(", Time Activity set to ");  		Serial.print(SPIreadOneRegister(0x22));  
-  Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(ACT_INACT_CTL_Reg, HEX);
+  Serial.print("AC Activity Threshold set to "); Serial.print(SPIreadTwoRegisters(XL362_THRESH_ACT_L));
+  Serial.print(", Time threshold set to ");  		 Serial.print(SPIreadOneRegister(XL362_TIME_ACT)); 
+  Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(SPIreadOneRegister(XL362_ACT_INACT_CTL), HEX);
 #endif
 }
 
 void ADXL362::setupDCInactivityInterrupt(int threshold, int time){
-  // Setup motion and time thresholds
-  SPIwriteTwoRegisters(0x23, threshold);
-  SPIwriteTwoRegisters(0x25, time);
+  //  Setup motion and time thresholds
+  SPIwriteTwoRegisters(XL362_THRESH_ACT_L, threshold);
+  SPIwriteOneRegister(XL362_TIME_ACT, time);
 
   // turn on inactivity interrupt
-  byte ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);   // Read current reg value 
+  byte ACT_INACT_CTL_Reg = SPIreadOneRegister(XL362_ACT_INACT_CTL);   // Read current reg value 
   ACT_INACT_CTL_Reg = ACT_INACT_CTL_Reg | (0x04);      // turn on bit 3, INACT_EN  
-  SPIwriteOneRegister(0x27, ACT_INACT_CTL_Reg);        // Write new reg value 
-  ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);        // Verify properly written
+  SPIwriteOneRegister(XL362_ACT_INACT_CTL, ACT_INACT_CTL_Reg);       // Write new reg value 
 
 #ifdef ADXL362_DEBUG
-  Serial.print("DC Inactivity Threshold set to ");  Serial.print(SPIreadTwoRegisters(0x23));
-  Serial.print(", Time Inactivity set to ");  Serial.print(SPIreadTwoRegisters(0x25));
-  Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(ACT_INACT_CTL_Reg, HEX);
+  Serial.print("DC Activity Threshold set to "); Serial.print(SPIreadTwoRegisters(XL362_THRESH_ACT_L));
+  Serial.print(", Time threshold set to ");  		 Serial.print(SPIreadOneRegister(XL362_TIME_ACT)); 
+  Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(SPIreadOneRegister(XL362_ACT_INACT_CTL), HEX);
 #endif
 }
 
 
 void ADXL362::setupACInactivityInterrupt(int threshold, int time){
   //  Setup motion and time thresholds
-  SPIwriteTwoRegisters(0x23, threshold);
-  SPIwriteTwoRegisters(0x25, time);
+  SPIwriteTwoRegisters(XL362_THRESH_ACT_L, threshold);
+  SPIwriteOneRegister(XL362_TIME_ACT, time);
  
   // turn on inactivity interrupt
-  byte ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);   // Read current reg value
+  byte ACT_INACT_CTL_Reg = SPIreadOneRegister(XL362_ACT_INACT_CTL);   // Read current reg value
   ACT_INACT_CTL_Reg = ACT_INACT_CTL_Reg | (0x0C);      // turn on bit 3 and 4, INACT_AC_DCB, INACT_EN  
   SPIwriteOneRegister(0x27, ACT_INACT_CTL_Reg);        // Write new reg value 
-  ACT_INACT_CTL_Reg = SPIreadOneRegister(0x27);        // Verify properly written
+  SPIwriteOneRegister(XL362_ACT_INACT_CTL, ACT_INACT_CTL_Reg);       // Write new reg value 
 
 #ifdef ADXL362_DEBUG
-  Serial.print("AC Inactivity Threshold set to ");  Serial.print(SPIreadTwoRegisters(0x23));
-  Serial.print(", Time Inactivity set to ");  Serial.print(SPIreadTwoRegisters(0x25)); 
-  Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(ACT_INACT_CTL_Reg, HEX);
+  Serial.print("AC Activity Threshold set to "); Serial.print(SPIreadTwoRegisters(XL362_THRESH_ACT_L));
+  Serial.print(", Time threshold set to ");  		 Serial.print(SPIreadOneRegister(XL362_TIME_ACT)); 
+  Serial.print(", ACT_INACT_CTL Register is ");  Serial.println(SPIreadOneRegister(XL362_ACT_INACT_CTL), HEX);
 #endif
 }
 
@@ -216,26 +250,120 @@ void ADXL362::checkAllControlRegs(){
   SPI.transfer(0x0B);  // read instruction
   SPI.transfer(0x20);  // Start burst read at Reg 20
   Serial.println("Start Burst Read of all Control Regs - Library version 6-24-2012:");
-  Serial.print("Reg 20 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 21 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 22 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 23 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 24 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 25 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 26 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 27 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 28 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 29 = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 2A = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 2B = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 2C = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 2D = "); 	Serial.println(SPI.transfer(0x00), HEX);
-  Serial.print("Reg 2E = "); 	Serial.println(SPI.transfer(0x00), HEX);
+  Serial.println("Reg XL362_THRESH_ACT_L   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_THRESH_ACT_H   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_TIME_ACT       = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_THRESH_INACT_L = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_THRESH_INACT_H = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_TIME_INACT_L   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_TIME_INACT_H   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_ACT_INACT_CTL  = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_FIFO_CONTROL   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_FIFO_SAMPLES   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_INTMAP1        = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_INTMAP2        = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_FILTER_CTL     = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_POWER_CTL      = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.println("Reg XL362_SELF_TEST      = B"); 	Serial.println(SPI.transfer(0x00), BIN);
   
   digitalWrite(slaveSelectPin, HIGH);
 }
 
+void ADXL362::setRange(byte Range){
+	// Modify range (+-2g +-4g +-8g - ADXL362 Datasheep Page 33
+	// Choose RangeFlag between XL362_FILTER_FLAG_2G (default), XL362_FILTER_FLAG_4G, XL362_FILTER_FLAG_8G
+  byte temp = SPIreadOneRegister(XL362_FILTER_CTL);	// read Reg XL362_FILTER_CTL before modifying
+#ifdef ADXL362_DEBUG
+  Serial.print(  "Setting Measurement Range - Reg XL362_FILTER_CTL before = "); 
+  Serial.print(temp);
+#endif
 
+	switch ( RangeFlag ) { // Range affects converting LSB to mg
+	case XL362_FILTER_FLAG_2G:
+	  mgperLSB = 1;
+	  break;
+	case XL362_FILTER_FLAG_4G:
+	  mgperLSB = 2;
+	  break;
+	case XL362_FILTER_FLAG_8G:
+	  mgperLSB = 4;
+	  break;
+	default:
+	  // YOU SHOULDN'T BE HERE !
+	  mgperLSB = 1;
+	  break;
+	}
+
+  temp = temp & B00111111 | Range;
+  SPIwriteOneRegister(XL362_FILTER_CTL, temp); // Write to XL362_FILTER_CTL
+  delay(10);	
+  
+#ifdef ADXL362_DEBUG
+  temp = SPIreadOneRegister(XL362_FILTER_CTL);
+  Serial.print(  ", Reg after = "); 
+  Serial.println(temp); 
+#endif
+}
+
+void ADXL362::setBandwidth(byte BandWidth){
+	// modify Bandwidth - ADXL362 Datasheep Page 33
+	// Choose Bandwidth between XL362_FILTER_FLAG_HBW (default), XL362_FILTER_FLAG_FBW
+  byte temp = SPIreadOneRegister(XL362_FILTER_CTL);	// read Reg XL362_FILTER_CTL before modifying
+#ifdef ADXL362_DEBUG
+  Serial.print(  "Setting BandWidth - Reg XL362_FILTER_CTL before = "); 
+  Serial.print(temp);
+#endif
+
+  temp = temp & B11101111 | BandWidth;
+  SPIwriteOneRegister(XL362_FILTER_CTL, temp); // Write to XL362_FILTER_CTL
+  delay(10);	
+  
+#ifdef ADXL362_DEBUG
+  temp = SPIreadOneRegister(XL362_FILTER_CTL);
+  Serial.print(  ", Reg after = "); 
+  Serial.println(temp); 
+#endif
+}
+
+void ADXL362::setOutputDatarate(byte ODR){
+	// modify Output Data Rate - ADXL362 Datasheep Page 33
+	// Choose ODR between  XL362_FILTER_FLAG_ODR12, XL362_FILTER_FLAG_ODR25, XL362_FILTER_FLAG_ODR50, XL362_FILTER_FLAG_ODR100 (default), XL362_FILTER_FLAG_ODR200 , XL362_FILTER_FLAG_ODR400
+  byte temp = SPIreadOneRegister(XL362_FILTER_CTL);	// read Reg XL362_FILTER_CTL before modifying
+#ifdef ADXL362_DEBUG
+  Serial.print(  "Setting Output Data Rate - Reg XL362_FILTER_CTL before = "); 
+  Serial.print(temp);
+#endif
+
+  temp = temp & B11111000 | ODR;
+  SPIwriteOneRegister(XL362_FILTER_CTL, temp); // Write to XL362_FILTER_CTL
+  delay(10);	
+  
+#ifdef ADXL362_DEBUG
+  temp = SPIreadOneRegister(XL362_FILTER_CTL);
+  Serial.print(  ", Reg after = "); 
+  Serial.println(temp); 
+#endif
+}
+
+void ADXL362::setNoiseLevel(byte NoiseLevel){
+	// modify Noise Level - ADXL362 Datasheep Page 34
+	// Choose NoiseLevel between XL362_POWER_FLAG_NOISE_NORMAL (default), XL362_POWER_FLAG_NOISE_LOW, XL362_POWER_FLAG_NOISE_ULTRALOW
+  byte temp = SPIreadOneRegister(XL362_POWER_CTL);	// read Reg XL362_FILTER_CTL before modifying
+#ifdef ADXL362_DEBUG
+  Serial.print(  "Setting Output Data Rate - Reg XL362_POWER_CTL before = "); 
+  Serial.print(temp);
+#endif
+
+  temp = temp & B11001111  | NoiseLevel;
+  SPIwriteOneRegister(XL362_POWER_CTL, temp); // Write to XL362_FILTER_CTL
+  delay(10);	
+  
+#ifdef ADXL362_DEBUG
+  temp = SPIreadOneRegister(XL362_POWER_CTL);
+  Serial.print(  ", Reg after = "); 
+  Serial.println(temp); 
+#endif
+}
 
 // Basic SPI routines to simplify code
 // read and write one register
