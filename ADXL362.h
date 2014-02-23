@@ -23,7 +23,65 @@
  */
 //#define ADXL362_DEBUG 1
 
+/* ADXL Registers */
 
+#define XL362_DEVID_AD			0x00
+#define XL362_DEVID_MST			0x01
+#define XL362_PARTID			0x02
+#define XL362_REVID			0x03
+#define XL362_XDATA			0x08
+#define XL362_YDATA			0x09
+#define XL362_ZDATA			0x0A
+#define XL362_STATUS			0x0B
+#define XL362_FIFO_ENTRIES_L		0x0C
+#define XL362_FIFO_ENTRIES_H		0x0D
+#define XL362_XDATA_L			0x0E
+#define XL362_XDATA_H			0x0F
+#define XL362_YDATA_L			0x10
+#define XL362_YDATA_H			0x11
+#define XL362_ZDATA_L			0x12
+#define XL362_ZDATA_H			0x13
+#define XL362_TEMP_L			0x14
+#define XL362_TEMP_H			0x15
+#define XL362_SOFT_RESET		0x1F
+#define XL362_THRESH_ACT_L		0x20
+#define XL362_THRESH_ACT_H		0x21
+#define XL362_TIME_ACT			0x22
+#define XL362_THRESH_INACT_L		0x23
+#define XL362_THRESH_INACT_H		0x24
+#define XL362_TIME_INACT_L		0x25
+#define XL362_TIME_INACT_H		0x26
+#define XL362_ACT_INACT_CTL		0x27
+#define XL362_FIFO_CONTROL		0x28
+#define XL362_FIFO_SAMPLES		0x29
+#define XL362_INTMAP1			0x2A
+#define XL362_INTMAP2			0x2B
+#define XL362_FILTER_CTL		0x2C
+#define XL362_POWER_CTL			0x2D
+#define XL362_SELF_TEST			0x2E
+
+/* Configuration values */
+
+#define XL362_FILTER_FLAG_2G B00000000
+#define XL362_FILTER_FLAG_4G B01000000
+#define XL362_FILTER_FLAG_8G B10000000
+
+#define XL362_FILTER_FLAG_HBW B10000
+#define XL362_FILTER_FLAG_FBW B00000
+
+#define XL362_FILTER_FLAG_ODR12  B000
+#define XL362_FILTER_FLAG_ODR25  B001
+#define XL362_FILTER_FLAG_ODR50  B010
+#define XL362_FILTER_FLAG_ODR100 B011
+#define XL362_FILTER_FLAG_ODR200 B100
+#define XL362_FILTER_FLAG_ODR400 B111
+
+#define XL362_POWER_FLAG_NOISE_NORMAL   B000000
+#define XL362_POWER_FLAG_NOISE_LOW      B010000
+#define XL362_POWER_FLAG_NOISE_ULTRALOW B100000
+
+#define XL362_POWER_FLAG_MEASURE_STANDBY B00
+#define XL362_POWER_FLAG_MEASURE_RUNING  B10
 
 class ADXL362
 {
@@ -39,7 +97,8 @@ public:
 	int readXData();
 	int readYData();
 	int readZData();
-	void readXYZTData(int &XData, int &YData, int &ZData, int &Temperature);
+	void readXYZTData(word &XData, word &YData, word &ZData, word &Temperature);
+	void readXYZmg(int &X, int &Y, int &Z);
 	int readTemp();
 	
 	//
@@ -47,7 +106,7 @@ public:
 	//
 	void setupDCActivityInterrupt(int threshold, byte time);	
 	void setupDCInactivityInterrupt(int threshold, int time);
-    void setupACActivityInterrupt(int threshold, byte time);
+	void setupACActivityInterrupt(int threshold, byte time);
 	void setupACInactivityInterrupt(int threshold, int time);
 	
 	// need to add the following functions
@@ -62,6 +121,10 @@ public:
 	
 	void checkAllControlRegs();
 	
+	void setRange(byte Range);
+	void setBandwidth(byte BandWidth);
+	void setOutputDatarate(byte ODR);
+	void setNoiseLevel(byte NoiseLevel);
 	
 	//  Low-level SPI control, to simplify overall coding
 	byte SPIreadOneRegister(byte regAddress);
@@ -71,7 +134,9 @@ public:
 
 	
 private:
-
+	byte mgperLSB = 1; // default +-2g XL362_FILTER_FLAG_2G -> 1mg/LSB (ADXL362 Datasheet page 4)
+	
+	int RegistersToInt(word RegValue); // convert 12bits registers read to signed int;
 };
 
 #endif
