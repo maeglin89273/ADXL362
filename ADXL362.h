@@ -46,9 +46,9 @@
 #define XL362_SOFT_RESET		0x1F
 #define XL362_THRESH_ACT_L		0x20
 #define XL362_THRESH_ACT_H		0x21
-#define XL362_TIME_ACT			0x22
-#define XL362_THRESH_INACT_L		0x23
-#define XL362_THRESH_INACT_H		0x24
+#define XL362_TIME_ACT				0x22
+#define XL362_THRESH_INACT_L	0x23
+#define XL362_THRESH_INACT_H	0x24
 #define XL362_TIME_INACT_L		0x25
 #define XL362_TIME_INACT_H		0x26
 #define XL362_ACT_INACT_CTL		0x27
@@ -104,10 +104,10 @@ public:
 	//
 	// Activity/Inactivity interrupt functions
 	//
-	void setupDCActivityInterrupt(int threshold, byte time);	
-	void setupDCInactivityInterrupt(int threshold, int time);
-	void setupACActivityInterrupt(int threshold, byte time);
-	void setupACInactivityInterrupt(int threshold, int time);
+	void setupDCActivityInterrupt(int threshold, uint8_t time);	
+	void setupDCInactivityInterrupt(int threshold, uint8_t time);
+	void setupACActivityInterrupt(int threshold, uint8_t time);
+	void setupACInactivityInterrupt(int threshold, uint8_t time);
 	
 	// need to add the following functions
 	// void mapINT1(
@@ -121,20 +121,19 @@ public:
 	
 	void checkAllControlRegs();
 	
-	void setRange(byte Range);
-	void setBandwidth(byte BandWidth);
-	void setOutputDatarate(byte ODR);
-	void setNoiseLevel(byte NoiseLevel);
+	void setRange(uint8_t Range);
+	void setBandwidth(uint8_t BandWidth);
+	void setOutputDatarate(uint8_t ODR);
+	void setNoiseLevel(uint8_t NoiseLevel);
 	
 	//  Low-level SPI control, to simplify overall coding
-	byte SPIreadOneRegister(byte regAddress);
-	void SPIwriteOneRegister(byte regAddress, byte regValue);
-	int  SPIreadTwoRegisters(byte regAddress);
-	void SPIwriteTwoRegisters(byte regAddress, int twoRegValue);
-
+	uint8_t SPIreadOneRegister(uint8_t regAddress);
+	void SPIwriteOneRegister(uint8_t regAddress, uint8_t regValue);
+	int  SPIreadTwoRegisters(uint8_t regAddress);
+	void SPIwriteTwoRegisters(uint8_t regAddress, int twoRegValue);
 	
 private:
-	byte mgperLSB = 1; // default +-2g XL362_FILTER_FLAG_2G -> 1mg/LSB (ADXL362 Datasheet page 4)
+	uint8_t mgperLSB; // default +-2g XL362_FILTER_FLAG_2G -> 1mg/LSB (ADXL362 Datasheet page 4)
 	
 	int RegistersToInt(word RegValue); // convert 12bits registers read to signed int;
 };
