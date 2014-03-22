@@ -9,6 +9,8 @@
  
  Created June 2012
  by Anne Mahaffey - hosted on http://annem.github.com/ADXL362
+ Modified Mars 2014
+ by pixelk
  
  */ 
 
@@ -66,7 +68,6 @@ void ADXL362::beginMeasure() {
 #endif
 }
 
-
 //
 //  readXData(), readYData(), readZData(), readTemp()
 //  Read X, Y, Z, and Temp registers
@@ -107,7 +108,7 @@ int ADXL362::readTemp(){
   return TEMP;
 }
 
-void ADXL362::readXYZTData(word &XData, word &YData, word &ZData, word &Temperature){
+void ADXL362::readXYZTData(short &XData, short &YData, short &ZData, float &Temperature){
   
   // burst SPI read
   // A burst read of all three axis is required to guarantee all measurements correspond to same sample time
@@ -115,13 +116,14 @@ void ADXL362::readXYZTData(word &XData, word &YData, word &ZData, word &Temperat
   SPI.transfer(0x0B);  // read instruction
   SPI.transfer(XL362_XDATA_L);  // Start at XData Reg
   XData = SPI.transfer(0x00);
-  XData = XData + (SPI.transfer(0x00) << 8);
+  XData = XData + ((short)SPI.transfer(0x00) << 8);
   YData = SPI.transfer(0x00);
-  YData = YData + (SPI.transfer(0x00) << 8);
+  YData = YData + ((short)SPI.transfer(0x00) << 8);
   ZData = SPI.transfer(0x00);
-  ZData = ZData + (SPI.transfer(0x00) << 8);
-  Temperature = SPI.transfer(0x00);
-  Temperature = Temperature + (SPI.transfer(0x00) << 8);
+  ZData = ZData + ((short)SPI.transfer(0x00) << 8);
+  short RawTemperature = SPI.transfer(0x00);
+  RawTemperature = RawTemperature + ((short)SPI.transfer(0x00) << 8);
+  Temperature = (float)RawTemperature * 0.065;
   digitalWrite(slaveSelectPin, HIGH);
   
 #ifdef ADXL362_DEBUG
@@ -132,41 +134,40 @@ void ADXL362::readXYZTData(word &XData, word &YData, word &ZData, word &Temperat
 #endif
 }
 
-int ADXL362::RegistersToInt(word RegValue){
-  int r = RegValue & 0x07FF; // 11bit of data
-  if ( RegValue & 0X0800 )   // Bit 12 and > are the sign
-  {
-    r = RegValue - 65536;
-  }
-  return r;	
-}
-
 void ADXL362::readXYZmg(int &X, int &Y, int &Z){
   // burst SPI read
   // A burst read of all three axis is required to guarantee all measurements correspond to same sample time
   digitalWrite(slaveSelectPin, LOW);
   SPI.transfer(0x0B);  // read instruction
   SPI.transfer(XL362_XDATA_L);  // Start at XData Reg
-  word XData = SPI.transfer(0x00);
-  XData = XData + (SPI.transfer(0x00) << 8);
-  word YData = SPI.transfer(0x00);
-  YData = YData + (SPI.transfer(0x00) << 8);
-  word ZData = SPI.transfer(0x00);
-  ZData = ZData + (SPI.transfer(0x00) << 8);
+  short XData = SPI.transfer(0x00);
+  XData = XData + ((short)SPI.transfer(0x00) << 8);
+  short YData = SPI.transfer(0x00);
+  YData = YData + ((short)SPI.transfer(0x00) << 8);
+  short ZData = SPI.transfer(0x00);
+  ZData = ZData + ((short)SPI.transfer(0x00) << 8);
   digitalWrite(slaveSelectPin, HIGH);
   
-  X = RegistersToInt(XData);
-  X *= mgperLSB;
-  Y = RegistersToInt(YData);
-  Y *= mgperLSB;
-  Z = RegistersToInt(ZData);
-  Z *= mgperLSB;
+  X = (int)XData * mgperLSB;
+  Y = (int)YData * mgperLSB;
+  Z = (int)ZData * mgperLSB;
   
 #ifdef ADXL362_DEBUG
   Serial.print(  "x = "); Serial.print(X); 
   Serial.print(  "\ty = "); Serial.print(Y); 
   Serial.println(  "\tz = "); Serial.print(Z); 
 #endif
+}
+
+void ADXL362::XYZmgtoRPT(int X, int Y, int Z, float &Rho, float &Phi, float &Theta){
+	Rho = atan2(float(X), sqrt(pow(float(Y),2)+pow(float(Z),2)));
+  Rho *= 180/M_PI; 
+
+  Phi = atan2(float(Y), sqrt(pow(float(X),2)+pow(float(Z),2)));
+  Phi *= 180/M_PI; 
+
+  Theta = atan2(sqrt(pow(float(X),2)+pow(float(Y),2)),float(Z));
+  Theta *= 180/M_PI; 	
 }
 
 void ADXL362::setupDCActivityInterrupt(int threshold, uint8_t time){
@@ -248,21 +249,21 @@ void ADXL362::checkAllControlRegs(){
   SPI.transfer(0x0B);  // read instruction
   SPI.transfer(0x20);  // Start burst read at Reg 20
   Serial.println("Start Burst Read of all Control Regs - Library version 6-24-2012:");
-  Serial.println("Reg XL362_THRESH_ACT_L   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_THRESH_ACT_H   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_TIME_ACT       = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_THRESH_INACT_L = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_THRESH_INACT_H = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_TIME_INACT_L   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_TIME_INACT_H   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_ACT_INACT_CTL  = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_FIFO_CONTROL   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_FIFO_SAMPLES   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_INTMAP1        = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_INTMAP2        = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_FILTER_CTL     = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_POWER_CTL      = B"); 	Serial.println(SPI.transfer(0x00), BIN);
-  Serial.println("Reg XL362_SELF_TEST      = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_THRESH_ACT_L   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_THRESH_ACT_H   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_TIME_ACT       = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_THRESH_INACT_L = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_THRESH_INACT_H = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_TIME_INACT_L   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_TIME_INACT_H   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_ACT_INACT_CTL  = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_FIFO_CONTROL   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_FIFO_SAMPLES   = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_INTMAP1        = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_INTMAP2        = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_FILTER_CTL     = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_POWER_CTL      = B"); 	Serial.println(SPI.transfer(0x00), BIN);
+  Serial.print("Reg XL362_SELF_TEST      = B"); 	Serial.println(SPI.transfer(0x00), BIN);
   
   digitalWrite(slaveSelectPin, HIGH);
 }
