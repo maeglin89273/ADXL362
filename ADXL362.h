@@ -9,6 +9,8 @@
  
  Created June 2012
  by Anne Mahaffey - hosted on http://annem.github.com/ADXL362
+ Modified Mars 2014
+ by pixelk
  
  */ 
 
@@ -97,8 +99,9 @@ public:
 	int readXData();
 	int readYData();
 	int readZData();
-	void readXYZTData(word &XData, word &YData, word &ZData, word &Temperature);
+	void readXYZTData(short &XData, short &YData, short &ZData, float &Temperature);
 	void readXYZmg(int &X, int &Y, int &Z);
+	void XYZmgtoRPT(int X, int Y, int Z, float &Rho, float &Phi, float &Theta);
 	int readTemp();
 	
 	//
@@ -134,8 +137,7 @@ public:
 	
 private:
 	uint8_t mgperLSB; // default +-2g XL362_FILTER_FLAG_2G -> 1mg/LSB (ADXL362 Datasheet page 4)
-	
-	int RegistersToInt(word RegValue); // convert 12bits registers read to signed int;
+
 };
 
 #endif
