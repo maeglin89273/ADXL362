@@ -89,7 +89,7 @@ class ADXL362
 {
 public:
 
-	ADXL362();
+	ADXL362(uint8_t slaveSelectPin = 10);
 	
 	//
 	// Basic Device control and readback functions
@@ -136,6 +136,7 @@ public:
 	void SPIwriteTwoRegisters(uint8_t regAddress, int twoRegValue);
 	
 private:
+	const uint8_t slaveSelectPin;
 	uint8_t mgperLSB; // default +-2g XL362_FILTER_FLAG_2G -> 1mg/LSB (ADXL362 Datasheet page 4)
 
 };

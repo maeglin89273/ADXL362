@@ -18,9 +18,8 @@
 #include <ADXL362.h>
 #include <SPI.h>
 
-const int slaveSelectPin = 10;
 
-ADXL362::ADXL362() {
+ADXL362::ADXL362(uint8_t slaveSelectPin) : slaveSelectPin(slaveSelectPin)  {
 
 }
 
